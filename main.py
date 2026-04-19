@@ -418,7 +418,8 @@ with st.sidebar:
     # !!!!!!!!!!!!!!! Add ur model path here
     model_list = [
         "mlp_latest_norm_best_model.pth",
-        "gcn_model.pth"
+        "gcn_model.pth",
+        "1dcnn_best_model.pth"
     ]
     model_path = st.selectbox(
         "Change model here:",
