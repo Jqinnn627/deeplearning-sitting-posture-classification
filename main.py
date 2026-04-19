@@ -537,7 +537,7 @@ if st.session_state.running:
                 last_kps = kp
                 if posture_model is not None:
                     try:
-                        input = build_input(kp, W, H)
+                        input = build_input(kp, index_model, device)
                         input = input.to(device)
                         lbl, conf  = prediction(posture_model, input)
                         last_label = lbl
