@@ -7,10 +7,7 @@ import torch
 import torch.nn as nn
 import torch
 import torchvision.transforms.functional as F
-from torchvision.models.detection import (
-    keypointrcnn_resnet50_fpn,
-    KeypointRCNN_ResNet50_FPN_Weights,
-)
+from torchvision.models.detection import keypointrcnn_resnet50_fpn
 
 # GCN Specific imports
 from torch_geometric.data import Data
@@ -87,6 +84,9 @@ section[data-testid="stSidebar"] {
 # End
 ############################
 
+############################ 
+# Adapted from https://colab.research.google.com/github/pytorch/vision/blob/gh-pages/main/_generated_ipynb_notebooks/plot_visualization_utils.ipynb
+############################
 # COCO keypoint
 parts = [
     "nose", "left_eye", "right_eye", "left_ear", "right_ear",
@@ -94,6 +94,9 @@ parts = [
     "left_wrist", "right_wrist", "left_hip", "right_hip",
     "left_knee", "right_knee", "left_ankle", "right_ankle"
 ]
+############################ 
+# End
+############################
 
 skeleton_edges = [
     [0, 1], [0, 2], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5,6], [5, 7], 
@@ -101,13 +104,17 @@ skeleton_edges = [
     [14, 12], [15, 13], [16, 14]
 ]
 
+############################ 
+# Adapted from https://docs.pytorch.org/vision/0.12/generated/torchvision.models.detection.keypointrcnn_resnet50_fpn.html?highlight=keypoint
+############################
 # Keypoint R-CNN
 def load_detector():
-    model  = keypointrcnn_resnet50_fpn(
-        weights=KeypointRCNN_ResNet50_FPN_Weights.DEFAULT
-    )
+    model  = keypointrcnn_resnet50_fpn(pretrained=True)
     model.to(device).eval()
     return model
+############################ 
+# End
+############################
 
 # Load sitting posture model
 def load_posture_model(path: str, index_model: int):
@@ -115,6 +122,9 @@ def load_posture_model(path: str, index_model: int):
     match index_model:
         # MLP
         case 0:
+            ############################ 
+            # Coded by NgJiaQin
+            ############################
             class MLP(nn.Module):
                 def __init__(self):
                     """
@@ -161,6 +171,12 @@ def load_posture_model(path: str, index_model: int):
             net.load_state_dict(torch.load(path, map_location=device))
             net.to(device).eval()
             return net
+        ############################ 
+        # End
+        ############################
+        ############################ 
+        # Coded by Dennis
+        ############################
         case 1:            
             class GCN_model(nn.Module):
                 def __init__(self):
@@ -201,6 +217,12 @@ def load_posture_model(path: str, index_model: int):
             net.load_state_dict(torch.load(path, map_location=device))
             net.to(device).eval()
             return net
+        ############################ 
+        # End
+        ############################
+        ############################ 
+        # Coded by Pang Jing Thean
+        ############################
         case 2:
             class CNN1d(nn.Module):
                 def __init__(self):
@@ -254,9 +276,13 @@ def load_posture_model(path: str, index_model: int):
             net.load_state_dict(torch.load(path, map_location=device))
             net.to(device).eval()
             return net
-        case 3:
-            return None
+        ############################ 
+        # End
+        ############################
 
+############################ 
+# Coded by NgJiaQin
+############################
 # Extraction keypoint 
 def extract_keypoint(img, model, device):
     """
@@ -277,7 +303,13 @@ def extract_keypoint(img, model, device):
         return None # No human detected
 
     return kp[best].detach().cpu().numpy()
+############################ 
+# End
+############################
 
+############################ 
+# Coded by 
+############################
 def normalize_coco_posture_safe(pos_tensor):
     """
     Safely normalizes a [17, 3] COCO keypoint tensor using the Visibility flag.
@@ -354,6 +386,9 @@ def build_input(kp: np.ndarray, index_model: int, device):
     elif index_model == 2:
         cnn_input = norm_tensor.transpose(0, 1).unsqueeze(0)
         return cnn_input.to(device)
+############################ 
+# End
+############################
 
 def prediction(model, data):
     """
@@ -361,16 +396,27 @@ def prediction(model, data):
     """
     with torch.inference_mode():
         output = model(data)
-
-    if output.shape[-1] == 1:
+    ############################ 
+    # Coded by Ng Jia Qin
+    ############################
+    if output.shape[-1] == 1: #confirm (_, 1)
         prob = output.item()
-        
+        ############################ 
+        # Coded by Pang Jing Thean
+        ############################
         if prob < 0.0 or prob > 1.0:
             prob = torch.sigmoid(output).item()
-            
+        ############################ 
+        # End
+        ############################   
         label = "Good" if prob >= 0.5 else "Bad"
         conf = prob if prob >= 0.5 else 1.0 - prob 
-
+    ############################ 
+    # End
+    ############################
+    ############################ 
+    # Coded by Dennis
+    ############################
     else:
         # Convert raw logits to percentages (0 to 1)
         probs = torch.softmax(output, dim=-1).squeeze()
@@ -381,14 +427,15 @@ def prediction(model, data):
         # NOTE: Assumes Class 0 is "Good". Change this if your dataset is flipped!
         label = "Good" if pred_class == 1 else "Bad"
         conf = probs[pred_class].item()
-
+    ############################ 
+    # End
+    ############################
     return label, conf
 
 
 ############################ 
 # Generated from Claude
 ############################
-
 # Draw Skeleton on Frame
 def draw_skeleton(frame, kp, label):
     #Colors
@@ -410,7 +457,9 @@ def draw_skeleton(frame, kp, label):
 ############################
 # End
 ############################
-
+############################ 
+# Coded by Ng Jia Qin
+############################
 # Sidebar 
 with st.sidebar:
     st.markdown("## Sitting Posture Classification")
@@ -426,7 +475,7 @@ with st.sidebar:
         model_list,
         index=0
     )
-    # 0 - MLP, 1 - GCN, 2 - 1DCNN, 3 - 
+    # 0 - MLP, 1 - GCN, 2 - 1DCNN, 3 - ?
     index_model = model_list.index(model_path)
 
 # Load models
@@ -445,7 +494,7 @@ else:
 
 # Header
 st.markdown("# Sitting Posture Classification")
-st.caption("Real-time sitting posture · Keypoint R-CNN + GCN / 1DCNN / MLP / ?")
+st.caption("Real-time sitting posture · Keypoint R-CNN + GCN / 1DCNN / MLP")
 
 if det_err:
     st.error(f"**Keypoint R-CNN failed:** {det_err}")
@@ -453,7 +502,9 @@ if det_err:
 
 if mdl_err:
     st.warning(f"Posture model not loaded — {mdl_err}")
-
+############################ 
+# End
+############################
 ############################ 
 # Generated from Claude
 ############################
@@ -507,7 +558,7 @@ if st.session_state.running:
         frame_n += 1
 
         ############################ 
-        # Coded by NJQ
+        # Coded by NgJiaQin
         ############################
         # run R-CNN + classifier every 2 frames
         if frame_n % 2 == 0:
